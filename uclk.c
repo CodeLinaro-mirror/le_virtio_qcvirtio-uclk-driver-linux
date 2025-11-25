@@ -354,9 +354,11 @@ static int __exit uclk_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id uclk_dt_match[] = { { .compatible =
-							       "opsy,uclk" },
-						     {} };
+static const struct of_device_id uclk_dt_match[] = {
+	{ .compatible = "coqos,uclk" },
+	{ .compatible = "opsy,uclk" },
+	{}
+};
 
 static struct platform_driver uclk_driver = {
 	.driver = {
