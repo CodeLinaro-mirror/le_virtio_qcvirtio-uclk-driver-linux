@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 #define UCLK_NAME_MAX_SIZE 64
+#define UCLK_RATES_ARRAY_MAX_SIZE 16
 
 /*
  * struct uclk_id - clock identifier
@@ -46,6 +47,19 @@ struct uclk_info {
 	__u32 id;
 	char name[UCLK_NAME_MAX_SIZE];
 	__u8 enabled;
+};
+
+/*
+ * struct uclk_rate_info - clock rates information
+ *
+ * @id: [IN] clock identifier
+ * @num_rates: [OUT] number of clock rates
+ * @rates: [OUT] array of clock rates
+ */
+struct uclk_rate_info {
+	__u32 id;
+	__u32 num_rates;
+	__u64 rates[UCLK_RATES_ARRAY_MAX_SIZE];
 };
 
 /*
@@ -87,5 +101,7 @@ struct uclk_rate {
 #define UCLK_IOCTL_SET_CLOCK_STATE _IOW(UCLKIO, 0x06, struct uclk_state)
 #define UCLK_IOCTL_SET_CLOCK_RATE _IOW(UCLKIO, 0x07, struct uclk_rate)
 #define UCLK_IOCTL_GET_CLOCK_RATE _IOWR(UCLKIO, 0x08, struct uclk_rate)
+#define UCLK_IOCTL_GET_CLOCK_RATES_INFO \
+	_IOWR(UCLKIO, 0x09, struct uclk_rate_info)
 
 #endif /* UCLK_IOCTL_H */

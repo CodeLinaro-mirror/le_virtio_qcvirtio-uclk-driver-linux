@@ -22,6 +22,7 @@ struct uclk_private {
 	const char *name;
 	struct clk *clk;
 	bool enabled;
+	struct uclk_rate_info info;
 };
 
 struct uclk_device {
@@ -208,6 +209,25 @@ static long uclk_ioctl_get_clock_rate(struct uclk_device *uclk_dev,
 	return 0;
 }
 
+static long uclk_ioctl_get_clock_rates_info(struct uclk_device *uclk_dev,
+					    struct uclk_rate_info __user *arg)
+{
+	struct uclk_rate_info info;
+
+	if (copy_from_user(&info, arg, sizeof(info)))
+		return -EFAULT;
+
+	if (info.id >= uclk_dev->clocks_count)
+		return -EINVAL;
+
+	memcpy(&info, &uclk_dev->clocks[info.id].info, sizeof(info));
+
+	if (copy_to_user(arg, &info, sizeof(info)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long uclk_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct miscdevice *uclk_miscdev = file->private_data;
@@ -242,6 +262,9 @@ static long uclk_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case UCLK_IOCTL_GET_CLOCK_RATE:
 		return uclk_ioctl_get_clock_rate(
 			uclk_dev, (struct uclk_rate __user *)arg);
+	case UCLK_IOCTL_GET_CLOCK_RATES_INFO:
+		return uclk_ioctl_get_clock_rates_info(
+			uclk_dev, (struct uclk_rate_info __user *)arg);
 	default:
 		break;
 	}
@@ -252,6 +275,38 @@ static long uclk_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations uclk_fops = { .owner = THIS_MODULE,
 						  .unlocked_ioctl =
 							  uclk_ioctl };
+
+static int uclk_is_rate_reported(struct uclk_private *uclk, unsigned long rate,
+				 unsigned int items)
+{
+	unsigned int i;
+
+	/* Iterate over rates and check if entry already exists */
+	for (i = 0; i < items; i++) {
+		if (uclk->info.rates[i] == rate)
+			return 1;
+	}
+
+	return 0;
+}
+
+static void uclk_get_clk_rate_info(struct uclk_private *uclk)
+{
+	long freq = 0;
+	unsigned int i;
+
+	for (i = 0; i < UCLK_RATES_ARRAY_MAX_SIZE; i++) {
+		freq = clk_round_rate(uclk->clk, (unsigned long)(freq + 1));
+
+		if ((freq <= 0) ||
+		    (uclk_is_rate_reported(uclk, (unsigned long)freq, i)))
+			break;
+
+		uclk->info.rates[i] = freq;
+	}
+
+	uclk->info.num_rates = i;
+}
 
 static int __init uclk_probe(struct platform_device *pdev)
 {
@@ -313,6 +368,7 @@ static int __init uclk_probe(struct platform_device *pdev)
 				return PTR_ERR(uclk_dev->clocks[i].clk);
 			}
 
+			uclk_get_clk_rate_info(&uclk_dev->clocks[i]);
 			dev_info(&pdev->dev, "clock[%d] = %s\n", i,
 				 uclk_dev->clocks[i].name);
 		}
