@@ -136,9 +136,8 @@ static long uclk_ioctl_get_clock_info(struct uclk_device *uclk_dev,
 	if (info.id >= uclk_dev->clocks_count)
 		return -EINVAL;
 
-	memset(info.name, 0, sizeof(info.name));
-	strncpy(info.name, uclk_dev->clocks[info.id].name,
-		sizeof(info.name) - 1);
+	strscpy_pad(info.name, uclk_dev->clocks[info.id].name,
+		    sizeof(info.name));
 
 	info.enabled = __clk_is_enabled(uclk_dev->clocks[info.id].clk);
 
