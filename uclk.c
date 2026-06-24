@@ -4,6 +4,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -34,6 +35,7 @@ struct uclk_device {
 /* deprecated but kept for backwards compatibility */
 static int uclk_ioctl_enable(struct uclk_id *arg)
 {
+#if defined(CLK_GET_BY_NAME_DEFINED)
 	int code;
 	struct uclk_id id;
 	struct clk *clk;
@@ -50,11 +52,15 @@ static int uclk_ioctl_enable(struct uclk_id *arg)
 	clk_put(clk);
 
 	return code;
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 /* deprecated but kept for backwards compatibility */
 static int uclk_ioctl_disable(struct uclk_id *arg)
 {
+#if defined(CLK_GET_BY_NAME_DEFINED)
 	struct uclk_id id;
 	struct clk *clk;
 
@@ -70,11 +76,15 @@ static int uclk_ioctl_disable(struct uclk_id *arg)
 	clk_put(clk);
 
 	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 /* deprecated but kept for backwards compatibility */
 static int uclk_ioctl_get_rate(struct uclk_request *arg)
 {
+#if defined(CLK_GET_BY_NAME_DEFINED)
 	struct uclk_request request;
 	struct clk *clk;
 
@@ -93,11 +103,15 @@ static int uclk_ioctl_get_rate(struct uclk_request *arg)
 		return -EFAULT;
 
 	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 /* deprecated but kept for backwards compatibility */
 static int uclk_ioctl_set_rate(struct uclk_request *arg)
 {
+#if defined(CLK_GET_BY_NAME_DEFINED)
 	int code;
 	struct uclk_request request;
 	struct clk *clk;
@@ -114,6 +128,9 @@ static int uclk_ioctl_set_rate(struct uclk_request *arg)
 	clk_put(clk);
 
 	return code;
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 static long uclk_ioctl_get_clocks_count(struct uclk_device *uclk_dev,
@@ -392,7 +409,11 @@ static int __init uclk_probe(struct platform_device *pdev)
 	return ret;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 static int __exit uclk_remove(struct platform_device *pdev)
+#else
+static void uclk_remove(struct platform_device *pdev)
+#endif
 {
 	struct uclk_device *uclk_dev = platform_get_drvdata(pdev);
 	int i;
@@ -406,7 +427,9 @@ static int __exit uclk_remove(struct platform_device *pdev)
 	}
 
 	misc_deregister(&uclk_dev->miscdev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 	return 0;
+#endif
 }
 
 static const struct of_device_id uclk_dt_match[] = {
@@ -420,7 +443,11 @@ static struct platform_driver uclk_driver = {
 		.name = "uclk",
 		.of_match_table = uclk_dt_match,
 	},
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 	.remove = __exit_p(uclk_remove),
+#else
+	.remove = uclk_remove,
+#endif
 };
 
 module_platform_driver_probe(uclk_driver, uclk_probe);
